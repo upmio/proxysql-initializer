@@ -1,9 +1,9 @@
 package sync
 
 const (
-	serverSqlStr = `REPLACE INTO mysql_servers(hostgroup_id,hostname,port) VALUES (%d,'%s',%d);`
+	hostgroupSqlStr = `REPLACE INTO mysql_replication_hostgroups(writer_hostgroup,reader_hostgroup,comment) VALUES (%d,%d,'%s');`
 
-	hostgroupSqlStr = `REPLACE INTO mysql_replication_hostgroups(writer_hostgroup,reader_hostgroup,comment) VALUES (%d,%d,%s);`
+	serverSqlStr = `REPLACE INTO mysql_servers(hostgroup_id,hostname,port) VALUES (%d,'%s',%d);`
 
 	loadsSqlStr = `LOAD MYSQL SERVERS TO RUNTIME`
 

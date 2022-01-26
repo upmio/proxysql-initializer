@@ -36,9 +36,16 @@ var syncCmd = &cobra.Command{
 			return fmt.Errorf("not support %s", servertype)
 		}
 
+		defer syncObj.DB.Close()
+
 		serverList, err := syncObj.GetMysqlServerFromKubeByLabel(ctx)
 		if err != nil {
 			return err
+		}
+
+		fmt.Printf("Found mysql endpoint count %d\n", len(serverList))
+		for i, v := range serverList {
+			fmt.Printf("endpoint %d %v\n", i, v)
 		}
 
 		err = syncObj.LoadMysqlServerToRuntime(ctx, serverList)
