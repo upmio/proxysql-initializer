@@ -14,7 +14,7 @@ var vers bool
 
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
-	Use:   "proxysql initializer tools",
+	Use:   "proxysql-initializer",
 	Short: "This tool if for proxysql initializer mysql server in kubernetes.",
 	Long:  "This tool if for proxysql initializer mysql server in kubernetes",
 	RunE: func(cmd *cobra.Command, args []string) error {

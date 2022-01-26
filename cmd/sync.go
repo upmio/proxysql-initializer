@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -20,13 +21,14 @@ var syncCmd = &cobra.Command{
 	Long:  "use for sync mysql server",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var (
-			syncObj *sync.ServerSync
-			err     error
-			ctx     = context.Background()
+			syncObj     *sync.ServerSync
+			err         error
+			ctx, cancel = context.WithTimeout(context.Background(), time.Second*10)
 		)
+		defer cancel()
 		switch servertype {
 		case "mysql":
-			syncObj, err = sync.NewServerSync(username, password, host, port)
+			syncObj, err = sync.NewServerSync(username, password, host, "mysql", port)
 			if err != nil {
 				return err
 			}
@@ -34,12 +36,12 @@ var syncCmd = &cobra.Command{
 			return fmt.Errorf("not support %s", servertype)
 		}
 
-		serverList, err := syncObj.GetServerList(ctx)
+		serverList, err := syncObj.GetMysqlServerFromKubeByLabel(ctx)
 		if err != nil {
 			return err
 		}
 
-		err = syncObj.SyncServerList(ctx, serverList)
+		err = syncObj.LoadMysqlServerToRuntime(ctx, serverList)
 		if err != nil {
 			return err
 		}
