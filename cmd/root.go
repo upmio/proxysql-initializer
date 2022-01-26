@@ -7,16 +7,17 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/upmio/proxysql-initializer/cmd/sync"
 	"github.com/upmio/proxysql-initializer/version"
 )
 
-var vers bool
+var vers, helpFlag bool
 
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
 	Use:   "proxysql-initializer",
-	Short: "This tool if for proxysql initializer mysql server in kubernetes.",
-	Long:  "This tool if for proxysql initializer mysql server in kubernetes",
+	Short: "This tool used to sync information from backend mysql into proxysql administrator interface in kubernetes.",
+	Long:  "This tool used to sync information from backend mysql into proxysql administrator interface in kubernetes.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if vers {
 			fmt.Println(version.FullVersion())
@@ -36,5 +37,7 @@ func Execute() {
 }
 
 func init() {
+	RootCmd.PersistentFlags().BoolVarP(&helpFlag, "help", "", false, "Help default flag")
 	RootCmd.PersistentFlags().BoolVarP(&vers, "version", "v", false, "the proxysql-initializer version")
+	RootCmd.AddCommand(sync.SyncCmd)
 }
