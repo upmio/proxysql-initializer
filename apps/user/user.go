@@ -50,14 +50,15 @@ func (u *UserSync) GetUser(ctx context.Context, hostIp string) ([]*User, error) 
 		return nil, fmt.Errorf("execute %s fail, err: %v", getUserSql, err)
 	}
 
-	var (
-		user     = newUser()
-		userList = make([]*User, 10)
-	)
+	userList := make([]*User, 0, 10)
 
 	for rows.Next() {
-		rows.Scan(user.username, user.password)
-		userList = append(userList, user)
+		userTemp := newUser()
+		err := rows.Scan(&userTemp.username, &userTemp.password)
+		if err != nil {
+			return nil, fmt.Errorf("query user fail, err: %v", err)
+		}
+		userList = append(userList, userTemp)
 	}
 
 	return userList, nil

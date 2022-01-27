@@ -37,6 +37,8 @@ var userCmd = &cobra.Command{
 			return fmt.Errorf("get %s environment variables fail", internalIpEnvKey)
 		}
 
+		fmt.Println(hostIP)
+
 		proxysqlDB, err := newDB(username, password, host, "main", port)
 		if err != nil {
 			return fmt.Errorf("create proxysql db connect fail, err: %v", err)
@@ -64,7 +66,7 @@ var userCmd = &cobra.Command{
 		fmt.Printf("Found mysql user count %d\n", len(userList))
 
 		for i, v := range userList {
-			fmt.Printf("user %d %v\n", i, v)
+			fmt.Printf("user %d %v\n", i, *v)
 		}
 
 		err = syncObj.CleanUser(ctx)
@@ -83,8 +85,8 @@ var userCmd = &cobra.Command{
 }
 
 func init() {
-	serverCmd.PersistentFlags().StringVarP(&mysqlHost, "mysql-host", "", "127.0.0.1", "the proxysql-initializer backend mysql host")
-	serverCmd.PersistentFlags().StringVarP(&mysqlUser, "mysql-user", "", "check", "the proxysql-initializer backend mysql username")
-	serverCmd.PersistentFlags().StringVarP(&mysqlPassword, "mysql-password", "", "", "the proxysql-initializer backend mysql password")
-	serverCmd.PersistentFlags().IntVarP(&mysqlPort, "mysql-port", "", 6033, "the proxysql-initializer backend mysql port")
+	userCmd.PersistentFlags().StringVarP(&mysqlHost, "mysql-host", "", "127.0.0.1", "the proxysql-initializer backend mysql host")
+	userCmd.PersistentFlags().StringVarP(&mysqlUser, "mysql-user", "", "check", "the proxysql-initializer backend mysql username")
+	userCmd.PersistentFlags().StringVarP(&mysqlPassword, "mysql-password", "", "", "the proxysql-initializer backend mysql password")
+	userCmd.PersistentFlags().IntVarP(&mysqlPort, "mysql-port", "", 6033, "the proxysql-initializer backend mysql port")
 }

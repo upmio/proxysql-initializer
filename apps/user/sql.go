@@ -1,7 +1,7 @@
 package user
 
 const (
-	getUserSql = `SELECT user,authentication_string FROM mysql.user WHERE host = ?;`
+	getUserSql = `SELECT user,authentication_string FROM user WHERE host = ? ;`
 
 	insertUserSql = `INSERT INTO mysql_users(username,password,default_hostgroup,max_connections) VALUES ('%s','%s',%d,%d);`
 
