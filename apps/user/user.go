@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
+	"go.uber.org/zap"
 )
 
 func newUser() *User {
@@ -18,7 +20,7 @@ type User struct {
 	maxConn  int
 }
 
-func NewUserSync(mysqlDB, proxysqlDB *sql.DB) (*UserSync, error) {
+func NewUserSync(mysqlDB, proxysqlDB *sql.DB, logger *zap.SugaredLogger) (*UserSync, error) {
 	if mysqlDB == nil {
 		return nil, fmt.Errorf("mysqlDB is nil")
 	}
@@ -30,12 +32,14 @@ func NewUserSync(mysqlDB, proxysqlDB *sql.DB) (*UserSync, error) {
 	return &UserSync{
 		mysqlDB:    mysqlDB,
 		proxysqlDB: proxysqlDB,
+		logger:     logger,
 	}, nil
 }
 
 type UserSync struct {
 	mysqlDB    *sql.DB
 	proxysqlDB *sql.DB
+	logger     *zap.SugaredLogger
 }
 
 func (u *UserSync) GetUser(ctx context.Context, hostIp string) ([]*User, error) {
@@ -44,6 +48,7 @@ func (u *UserSync) GetUser(ctx context.Context, hostIp string) ([]*User, error) 
 	if err != nil {
 		return nil, fmt.Errorf("prepare stmt %s fail, err: %v", getUserSql, err)
 	}
+	defer stmt.Close()
 
 	rows, err := stmt.Query(hostIp)
 	if err != nil {
@@ -58,6 +63,7 @@ func (u *UserSync) GetUser(ctx context.Context, hostIp string) ([]*User, error) 
 		if err != nil {
 			return nil, fmt.Errorf("query user fail, err: %v", err)
 		}
+		u.logger.Infof("found user %s", userTemp.username)
 		userList = append(userList, userTemp)
 	}
 
@@ -76,16 +82,19 @@ func (u *UserSync) LoadUser(ctx context.Context, userList []*User) error {
 			return fmt.Errorf("execute %s fail, err: %v", insertUserSql, err)
 		}
 	}
+	u.logger.Info("insert mysql_users success")
 
 	_, err := u.proxysqlDB.Exec(loadUserSql)
 	if err != nil {
 		return fmt.Errorf("execute %s fail, err: %v", loadUserSql, err)
 	}
+	u.logger.Info("load mysql user to runtime success")
 
 	_, err = u.proxysqlDB.Exec(saveUserSql)
 	if err != nil {
 		return fmt.Errorf("execute %s fail, err: %v", loadUserSql, err)
 	}
+	u.logger.Info("save mysql user to disk success")
 
 	return nil
 }
@@ -95,6 +104,7 @@ func (u *UserSync) CleanUser(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("execute %s fail, err: %v", cleanUserSql, err)
 	}
+	u.logger.Info("clean mysql_users success")
 
 	return nil
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/upmio/proxysql-initializer/apps/user"
+	"go.uber.org/zap"
 )
 
 var (
@@ -37,8 +38,6 @@ var userCmd = &cobra.Command{
 			return fmt.Errorf("get %s environment variables fail", internalIpEnvKey)
 		}
 
-		fmt.Println(hostIP)
-
 		proxysqlDB, err := newDB(username, password, host, "main", port)
 		if err != nil {
 			return fmt.Errorf("create proxysql db connect fail, err: %v", err)
@@ -53,7 +52,10 @@ var userCmd = &cobra.Command{
 
 		defer mysqlDB.Close()
 
-		syncObj, err = user.NewUserSync(mysqlDB, proxysqlDB)
+		logger, _ := zap.NewDevelopment()
+		slogger := logger.Sugar()
+
+		syncObj, err = user.NewUserSync(mysqlDB, proxysqlDB, slogger)
 		if err != nil {
 			return err
 		}
@@ -61,12 +63,6 @@ var userCmd = &cobra.Command{
 		userList, err := syncObj.GetUser(ctx, hostIP)
 		if err != nil {
 			return err
-		}
-
-		fmt.Printf("Found mysql user count %d\n", len(userList))
-
-		for i, v := range userList {
-			fmt.Printf("user %d %v\n", i, *v)
 		}
 
 		err = syncObj.CleanUser(ctx)
@@ -79,7 +75,6 @@ var userCmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Println("sync success!")
 		return nil
 	},
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/upmio/proxysql-initializer/apps/server"
+	"go.uber.org/zap"
 )
 
 var (
@@ -34,23 +35,26 @@ var serverCmd = &cobra.Command{
 		defer cancel()
 
 		if svcGroupName = os.Getenv(svcGroupNameEnvKey); svcGroupName == "" {
-			return fmt.Errorf("get %s environment variables fail", svcGroupNameEnvKey)
+			return fmt.Errorf("get environment variables %s failed", svcGroupNameEnvKey)
 		}
 
 		if namespace = os.Getenv(namespaceEnvKey); namespace == "" {
-			return fmt.Errorf("get %s environment variables fail", namespaceEnvKey)
+			return fmt.Errorf("get environment variables %s failed", namespaceEnvKey)
 		}
 
 		proxysqlDB, err := newDB(username, password, host, "main", port)
 		if err != nil {
-			return fmt.Errorf("create db connect fail, err: %v", err)
+			return fmt.Errorf("generate db connect fail, err: %v", err)
 		}
 
 		defer proxysqlDB.Close()
 
+		logger, _ := zap.NewDevelopment()
+		slogger := logger.Sugar()
+
 		switch serverType {
 		case "mysql":
-			syncObj, err = server.NewServerSync(proxysqlDB, namespace, svcGroupName)
+			syncObj, err = server.NewServerSync(proxysqlDB, slogger, namespace, svcGroupName)
 			if err != nil {
 				return err
 			}
@@ -63,24 +67,12 @@ var serverCmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Printf("Found mysql endpoint count %d\n", len(serverList))
-
-		for i, v := range serverList {
-			fmt.Printf("endpoint %d %v\n", i, v)
-		}
-
 		err = syncObj.CleanServer(ctx)
 		if err != nil {
 			return err
 		}
 
-		err = syncObj.LoadServer(ctx, serverList)
-		if err != nil {
-			return err
-		}
-
-		fmt.Println("sync success!")
-		return nil
+		return syncObj.LoadServer(ctx, serverList)
 	},
 }
 
