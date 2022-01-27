@@ -71,9 +71,6 @@ func (u *UserSync) GetUser(ctx context.Context, hostIp string) ([]*User, error) 
 }
 
 func (u *UserSync) LoadUser(ctx context.Context, userList []*User) error {
-	if len(userList) == 0 {
-		return fmt.Errorf("input user list is empty")
-	}
 
 	for _, user := range userList {
 		sqlStr := fmt.Sprintf(insertUserSql, user.username, user.password, defaultHostGroup, maxConnections)

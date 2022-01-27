@@ -65,16 +65,16 @@ var userCmd = &cobra.Command{
 			return err
 		}
 
-		err = syncObj.CleanUser(ctx)
-		if err != nil {
-			return err
+		if len(userList) != 0 {
+			err = syncObj.CleanUser(ctx)
+			if err != nil {
+				return err
+			}
+
+			return syncObj.LoadUser(ctx, userList)
 		}
 
-		err = syncObj.LoadUser(ctx, userList)
-		if err != nil {
-			return err
-		}
-
+		slogger.Info("not found user to sync")
 		return nil
 	},
 }
