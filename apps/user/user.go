@@ -42,13 +42,18 @@ type UserSync struct {
 	logger     *zap.SugaredLogger
 }
 
-func (u *UserSync) GetUser(ctx context.Context, hostIp string) ([]*User, error) {
+func (u *UserSync) GetUser(_ context.Context, hostIp string) ([]*User, error) {
 
 	stmt, err := u.mysqlDB.Prepare(getUserSql)
 	if err != nil {
 		return nil, fmt.Errorf("prepare stmt %s fail, err: %v", getUserSql, err)
 	}
-	defer stmt.Close()
+	defer func(stmt *sql.Stmt) {
+		err := stmt.Close()
+		if err != nil {
+			fmt.Printf("close stmt fail, err: %v", err)
+		}
+	}(stmt)
 
 	rows, err := stmt.Query(hostIp)
 	if err != nil {
@@ -70,7 +75,7 @@ func (u *UserSync) GetUser(ctx context.Context, hostIp string) ([]*User, error) 
 	return userList, nil
 }
 
-func (u *UserSync) LoadUser(ctx context.Context, userList []*User) error {
+func (u *UserSync) LoadUser(_ context.Context, userList []*User) error {
 
 	for _, user := range userList {
 		sqlStr := fmt.Sprintf(insertUserSql, user.username, user.password, defaultHostGroup, maxConnections)
@@ -96,7 +101,7 @@ func (u *UserSync) LoadUser(ctx context.Context, userList []*User) error {
 	return nil
 }
 
-func (u *UserSync) CleanUser(ctx context.Context) error {
+func (u *UserSync) CleanUser(_ context.Context) error {
 	_, err := u.proxysqlDB.Exec(cleanUserSql)
 	if err != nil {
 		return fmt.Errorf("execute %s fail, err: %v", cleanUserSql, err)

@@ -2,6 +2,7 @@ package sync
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"os"
 	"time"
@@ -43,14 +44,24 @@ var userCmd = &cobra.Command{
 			return fmt.Errorf("create proxysql db connect fail, err: %v", err)
 		}
 
-		defer proxysqlDB.Close()
+		defer func(proxysqlDB *sql.DB) {
+			err := proxysqlDB.Close()
+			if err != nil {
+				fmt.Printf("close proxysql db fail, err: %v", err)
+			}
+		}(proxysqlDB)
 
 		mysqlDB, err := newDB(mysqlUser, mysqlPassword, mysqlHost, "mysql", mysqlPort)
 		if err != nil {
 			return fmt.Errorf("create mysql db connect fail, err: %v", err)
 		}
 
-		defer mysqlDB.Close()
+		defer func(mysqlDB *sql.DB) {
+			err := mysqlDB.Close()
+			if err != nil {
+				fmt.Printf("close mysql db fail, err: %v", err)
+			}
+		}(mysqlDB)
 
 		logger, _ := zap.NewDevelopment()
 		slogger := logger.Sugar()

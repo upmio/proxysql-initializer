@@ -2,6 +2,7 @@ package sync
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"os"
 	"time"
@@ -47,7 +48,12 @@ var serverCmd = &cobra.Command{
 			return fmt.Errorf("generate db connect fail, err: %v", err)
 		}
 
-		defer proxysqlDB.Close()
+		defer func(proxysqlDB *sql.DB) {
+			err := proxysqlDB.Close()
+			if err != nil {
+				fmt.Printf("close proxysql db fail, err: %v", err)
+			}
+		}(proxysqlDB)
 
 		logger, _ := zap.NewDevelopment()
 		slogger := logger.Sugar()

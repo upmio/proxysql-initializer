@@ -93,7 +93,7 @@ func (s *ServerSync) GetServer(ctx context.Context, svcType string) ([]*Server, 
 	return serverList, nil
 }
 
-func (s *ServerSync) LoadServer(ctx context.Context, serverList []*Server) error {
+func (s *ServerSync) LoadServer(_ context.Context, serverList []*Server) error {
 	if len(serverList) == 0 {
 		return fmt.Errorf("input servers list is empty")
 	}
@@ -131,7 +131,7 @@ func (s *ServerSync) LoadServer(ctx context.Context, serverList []*Server) error
 	return nil
 }
 
-func (s *ServerSync) CleanServer(ctx context.Context) error {
+func (s *ServerSync) CleanServer(_ context.Context) error {
 
 	_, err := s.proxysqlDB.Exec(cleanHostGroupSql)
 	if err != nil {
