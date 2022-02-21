@@ -9,18 +9,15 @@ import (
 )
 
 func newUser() *User {
-	return &User{
-		maxConn: maxConnections,
-	}
+	return &User{}
 }
 
 type User struct {
 	username string
 	password string
-	maxConn  int
 }
 
-func NewUserSync(mysqlDB, proxysqlDB *sql.DB, logger *zap.SugaredLogger) (*UserSync, error) {
+func NewUserSync(mysqlDB, proxysqlDB *sql.DB, logger *zap.SugaredLogger, defaultHostGroupId, maxConnections int) (*UserSync, error) {
 	if mysqlDB == nil {
 		return nil, fmt.Errorf("mysqlDB is nil")
 	}
@@ -30,16 +27,19 @@ func NewUserSync(mysqlDB, proxysqlDB *sql.DB, logger *zap.SugaredLogger) (*UserS
 	}
 
 	return &UserSync{
-		mysqlDB:    mysqlDB,
-		proxysqlDB: proxysqlDB,
-		logger:     logger,
+		mysqlDB:            mysqlDB,
+		proxysqlDB:         proxysqlDB,
+		logger:             logger,
+		defaultHostGroupId: defaultHostGroupId,
+		maxConnections:     maxConnections,
 	}, nil
 }
 
 type UserSync struct {
-	mysqlDB    *sql.DB
-	proxysqlDB *sql.DB
-	logger     *zap.SugaredLogger
+	mysqlDB                            *sql.DB
+	proxysqlDB                         *sql.DB
+	logger                             *zap.SugaredLogger
+	defaultHostGroupId, maxConnections int
 }
 
 func (u *UserSync) GetUser(_ context.Context, hostIp string) ([]*User, error) {
@@ -78,7 +78,7 @@ func (u *UserSync) GetUser(_ context.Context, hostIp string) ([]*User, error) {
 func (u *UserSync) LoadUser(_ context.Context, userList []*User) error {
 
 	for _, user := range userList {
-		sqlStr := fmt.Sprintf(insertUserSql, user.username, user.password, defaultHostGroup, maxConnections)
+		sqlStr := fmt.Sprintf(insertUserSql, user.username, user.password, u.defaultHostGroupId, u.maxConnections)
 		_, err := u.proxysqlDB.Exec(sqlStr)
 		if err != nil {
 			return fmt.Errorf("execute %s fail, err: %v", insertUserSql, err)

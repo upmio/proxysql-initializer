@@ -13,8 +13,8 @@ import (
 )
 
 var (
-	mysqlHost, mysqlUser, mysqlPassword string
-	mysqlPort                           int
+	mysqlHost, mysqlUser, mysqlPassword           string
+	mysqlPort, defaultHostGroupId, maxConnections int
 )
 
 const (
@@ -66,7 +66,7 @@ var userCmd = &cobra.Command{
 		logger, _ := zap.NewDevelopment()
 		slogger := logger.Sugar()
 
-		syncObj, err = user.NewUserSync(mysqlDB, proxysqlDB, slogger)
+		syncObj, err = user.NewUserSync(mysqlDB, proxysqlDB, slogger, defaultHostGroupId, maxConnections)
 		if err != nil {
 			return err
 		}
@@ -95,4 +95,6 @@ func init() {
 	userCmd.PersistentFlags().StringVarP(&mysqlUser, "mysql-user", "", "check", "the proxysql-initializer backend mysql username")
 	userCmd.PersistentFlags().StringVarP(&mysqlPassword, "mysql-password", "", "", "the proxysql-initializer backend mysql password")
 	userCmd.PersistentFlags().IntVarP(&mysqlPort, "mysql-port", "", 6033, "the proxysql-initializer backend mysql port")
+	userCmd.PersistentFlags().IntVarP(&defaultHostGroupId, "default-hostgroup-id", "", 10, "the proxysql user default hostgroup")
+	userCmd.PersistentFlags().IntVarP(&maxConnections, "max-connections", "", 1024, "the proxysql user max connections")
 }

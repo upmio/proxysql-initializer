@@ -13,7 +13,8 @@ import (
 )
 
 var (
-	serverType string
+	serverType                   string
+	rwHostGroupId, roHostGroupId int
 )
 
 const (
@@ -60,7 +61,7 @@ var serverCmd = &cobra.Command{
 
 		switch serverType {
 		case "mysql":
-			syncObj, err = server.NewServerSync(proxysqlDB, slogger, namespace, svcGroupName)
+			syncObj, err = server.NewServerSync(proxysqlDB, slogger, namespace, svcGroupName, rwHostGroupId, roHostGroupId)
 			if err != nil {
 				return err
 			}
@@ -84,4 +85,6 @@ var serverCmd = &cobra.Command{
 
 func init() {
 	serverCmd.PersistentFlags().StringVarP(&serverType, "server-type", "t", "mysql", "the proxysql-initializer sync type")
+	serverCmd.PersistentFlags().IntVarP(&rwHostGroupId, "rw-hostgroup-id", "", 10, "the proxysql read hostgroup id")
+	serverCmd.PersistentFlags().IntVarP(&roHostGroupId, "ro-hostgroup-id", "", 20, "the proxysql write hostgroup id")
 }
