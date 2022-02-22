@@ -41,6 +41,7 @@ func NewServerSync(db *sql.DB, logger *zap.SugaredLogger, namespace, svcGroupNam
 		logger:            logger,
 		rwHostGroupId:     rwHostGroupId,
 		roHostGroupId:     roHostGroupId,
+		rwLabel:           rwLabel,
 	}, nil
 }
 
@@ -49,6 +50,7 @@ type ServerSync struct {
 	namespace                    string
 	svcGroupNameLabel            string
 	svcGroupName                 string
+	rwLabel                      string
 	svcGroupTypeLabel            string
 	proxysqlDB                   *sql.DB
 	logger                       *zap.SugaredLogger
@@ -73,6 +75,7 @@ func (s *ServerSync) GetServer(ctx context.Context, svcType string) ([]*Server, 
 		LabelSelector: labels.Set{
 			s.svcGroupNameLabel: s.svcGroupName,
 			s.svcGroupTypeLabel: svcType,
+			s.rwLabel:           "false",
 		}.String(),
 	})
 	if err != nil {
@@ -80,6 +83,10 @@ func (s *ServerSync) GetServer(ctx context.Context, svcType string) ([]*Server, 
 	}
 
 	s.logger.Infof("found %d server endpoint", len(podList.Items))
+
+	if len(podList.Items) != 1 {
+		return nil, fmt.Errorf("get server list lenth != 0")
+	}
 
 	for _, pod := range podList.Items {
 		for _, container := range pod.Spec.Containers {
