@@ -60,7 +60,7 @@ var serverCmd = &cobra.Command{
 		slogger := logger.Sugar()
 
 		switch serverType {
-		case "mysql":
+		case "mysql-replication":
 			syncObj, err = server.NewServerSync(proxysqlDB, slogger, namespace, svcGroupName, rwHostGroupId, roHostGroupId)
 			if err != nil {
 				return err
@@ -69,7 +69,7 @@ var serverCmd = &cobra.Command{
 			return fmt.Errorf("not support %s", serverType)
 		}
 
-		serverList, err := syncObj.GetServerFromK8s(ctx, serverType)
+		serverList, err := syncObj.GetServerFromK8s(ctx)
 		if err != nil {
 			return err
 		}
@@ -79,7 +79,7 @@ var serverCmd = &cobra.Command{
 }
 
 func init() {
-	serverCmd.PersistentFlags().StringVarP(&serverType, "server-type", "t", "mysql", "the proxysql-initializer sync type")
+	serverCmd.PersistentFlags().StringVarP(&serverType, "type", "t", "mysql-replication", "the proxysql-initializer sync type")
 	serverCmd.PersistentFlags().IntVarP(&rwHostGroupId, "rw-hostgroup-id", "", 10, "the proxysql read hostgroup id")
 	serverCmd.PersistentFlags().IntVarP(&roHostGroupId, "ro-hostgroup-id", "", 20, "the proxysql write hostgroup id")
 }

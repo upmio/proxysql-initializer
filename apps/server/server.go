@@ -62,12 +62,12 @@ type Server struct {
 	port int
 }
 
-func (s *ServerSync) GetServerFromK8s(ctx context.Context, svcType string) ([]*Server, error) {
+func (s *ServerSync) GetServerFromK8s(ctx context.Context) ([]*Server, error) {
 	var serverList = make([]*Server, 0)
 	podList, err := s.client.CoreV1().Pods(s.namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: labels.Set{
 			svcGroupNameLabel: s.svcGroupName,
-			svcGroupTypeLabel: svcType,
+			svcTypeLabel:      svcType,
 		}.String(),
 	})
 
