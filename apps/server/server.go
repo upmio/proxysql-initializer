@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-
 	_ "github.com/go-sql-driver/mysql"
 	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,26 +31,20 @@ func NewServerSync(db *sql.DB, logger *zap.SugaredLogger, namespace, svcGroupNam
 	}
 
 	return &ServerSync{
-		client:            clientset,
-		namespace:         namespace,
-		svcGroupNameLabel: svcGroupNameLabel,
-		svcGroupName:      svcGroupName,
-		svcGroupTypeLabel: svcGroupTypeLabel,
-		proxysqlDB:        db,
-		logger:            logger,
-		rwHostGroupId:     rwHostGroupId,
-		roHostGroupId:     roHostGroupId,
-		rwLabel:           rwLabel,
+		client:        clientset,
+		namespace:     namespace,
+		svcGroupName:  svcGroupName,
+		proxysqlDB:    db,
+		logger:        logger,
+		rwHostGroupId: rwHostGroupId,
+		roHostGroupId: roHostGroupId,
 	}, nil
 }
 
 type ServerSync struct {
 	client                       *kubernetes.Clientset
 	namespace                    string
-	svcGroupNameLabel            string
 	svcGroupName                 string
-	rwLabel                      string
-	svcGroupTypeLabel            string
 	proxysqlDB                   *sql.DB
 	logger                       *zap.SugaredLogger
 	rwHostGroupId, roHostGroupId int
@@ -69,53 +62,78 @@ type Server struct {
 	port int
 }
 
-func (s *ServerSync) GetServer(ctx context.Context, svcType string) ([]*Server, error) {
-	var serverList = make([]*Server, 0, 5)
+func (s *ServerSync) GetServerFromK8s(ctx context.Context, svcType string) ([]*Server, error) {
+	var serverList = make([]*Server, 0)
 	podList, err := s.client.CoreV1().Pods(s.namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: labels.Set{
-			s.svcGroupNameLabel: s.svcGroupName,
-			s.svcGroupTypeLabel: svcType,
-			s.rwLabel:           "false",
+			svcGroupNameLabel: s.svcGroupName,
+			svcGroupTypeLabel: svcType,
 		}.String(),
 	})
+
 	if err != nil {
 		return nil, fmt.Errorf("get server list fail, err: %v", err)
 	}
 
-	s.logger.Infof("found %d server endpoint", len(podList.Items))
-
-	if len(podList.Items) != 1 {
-		return nil, fmt.Errorf("get server list lenth != 0")
+	if len(podList.Items) == 0 {
+		return nil, fmt.Errorf("server list lenth is zero")
 	}
 
+	s.logger.Infof("found %d endpoint from k8s ", len(podList.Items))
+
 	for _, pod := range podList.Items {
+		readOnly, ok := pod.Labels[readOnlyLabel]
+		if !ok {
+			return nil, fmt.Errorf("pod %s does not have label %s", pod.Name, readOnlyLabel)
+		}
 		for _, container := range pod.Spec.Containers {
 			if container.Name == svcType {
-				serverObj := newServer(pod.Status.PodIP, int(container.Ports[0].ContainerPort))
-				serverList = append(serverList, serverObj)
-				s.logger.Infof("found server %s", pod.Status.PodIP)
+
+				switch readOnly {
+				case "true":
+					s.logger.Infof("slave server name: %s ip: %s", pod.Name, pod.Status.PodIP)
+				case "false":
+					serverObj := newServer(pod.Status.PodIP, int(container.Ports[0].ContainerPort))
+					serverList = append(serverList, serverObj)
+					s.logger.Infof("master server name: %s ip: %s", pod.Name, pod.Status.PodIP)
+				default:
+					return nil, fmt.Errorf("pod %s label %s is not true and false", pod.Name, readOnlyLabel)
+				}
 			}
 		}
+	}
+
+	if len(serverList) > 1 {
+		return nil, fmt.Errorf("get master pod count more than 1")
 	}
 
 	return serverList, nil
 }
 
-func (s *ServerSync) LoadServer(_ context.Context, serverList []*Server) error {
-	if len(serverList) == 0 {
-		return fmt.Errorf("input servers list is empty")
+func (s *ServerSync) SyncServerToProxy(_ context.Context, serverList []*Server) error {
+	_, err := s.proxysqlDB.Exec(cleanHostGroupSql)
+	if err != nil {
+		return fmt.Errorf("execute %s fail, err: %v", cleanHostGroupSql, err)
 	}
+	s.logger.Info("clean mysql_replication_hostgroups success")
 
 	sqlStr := fmt.Sprintf(insertHostGroupSql, s.rwHostGroupId, s.roHostGroupId, s.svcGroupName)
-	_, err := s.proxysqlDB.Exec(sqlStr)
+	_, err = s.proxysqlDB.Exec(sqlStr)
 	if err != nil {
 		return fmt.Errorf("execute %s fail, err: %v", insertHostGroupSql, err)
 	}
 
 	s.logger.Info("insert mysql_replication_hostgroups success")
 
-	for _, mysqlServer := range serverList {
-		sqlStr := fmt.Sprintf(insertServerSql, s.roHostGroupId, mysqlServer.ip, mysqlServer.port)
+	_, err = s.proxysqlDB.Exec(cleanServerSql)
+	if err != nil {
+		return fmt.Errorf("execute %s fail, err: %v", cleanServerSql, err)
+	}
+
+	s.logger.Info("clean mysql_servers success")
+
+	for _, server := range serverList {
+		sqlStr := fmt.Sprintf(insertServerSql, s.rwHostGroupId, server.ip, server.port)
 		_, err := s.proxysqlDB.Exec(sqlStr)
 		if err != nil {
 			return fmt.Errorf("execute %s fail, err: %v", insertServerSql, err)
@@ -135,24 +153,6 @@ func (s *ServerSync) LoadServer(_ context.Context, serverList []*Server) error {
 		return fmt.Errorf("execute %s fail, err: %v", saveServerSql, err)
 	}
 	s.logger.Info("save mysql server to disk success")
-
-	return nil
-}
-
-func (s *ServerSync) CleanServer(_ context.Context) error {
-
-	_, err := s.proxysqlDB.Exec(cleanHostGroupSql)
-	if err != nil {
-		return fmt.Errorf("execute %s fail, err: %v", cleanHostGroupSql, err)
-	}
-	s.logger.Info("clean mysql_replication_hostgroups success")
-
-	_, err = s.proxysqlDB.Exec(cleanServerSql)
-	if err != nil {
-		return fmt.Errorf("execute %s fail, err: %v", cleanServerSql, err)
-	}
-
-	s.logger.Info("clean mysql_servers success")
 
 	return nil
 }

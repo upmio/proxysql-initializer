@@ -69,17 +69,12 @@ var serverCmd = &cobra.Command{
 			return fmt.Errorf("not support %s", serverType)
 		}
 
-		serverList, err := syncObj.GetServer(ctx, serverType)
+		serverList, err := syncObj.GetServerFromK8s(ctx, serverType)
 		if err != nil {
 			return err
 		}
 
-		err = syncObj.CleanServer(ctx)
-		if err != nil {
-			return err
-		}
-
-		return syncObj.LoadServer(ctx, serverList)
+		return syncObj.SyncServerToProxy(ctx, serverList)
 	},
 }
 
